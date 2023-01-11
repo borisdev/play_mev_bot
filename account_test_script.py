@@ -1,7 +1,10 @@
 import os
+from time import sleep
+import threading
+import queue
 from os.path import join, dirname
 from dotenv import load_dotenv
-import polling2
+# import polling2
 from dataclasses import dataclass
 from eth_account import Account
 from eth_account.signers.local import LocalAccount
@@ -9,11 +12,14 @@ from web3.middleware import construct_sign_and_send_raw_middleware
 from web3.auto import Web3
 from web3.exceptions import TransactionNotFound
 
+q = queue.Queue()  # inter-thread message channel
+
 dotenv_path = join(dirname(__file__), '.env')
 load_dotenv(dotenv_path)
 
 chuck = os.environ.get("CHUCKS_PUBLIC_ETH_ADDRESS")  # $$$$$$$$$$$$$$$$$ key
 private_key = os.environ.get("PRIVATE_KEY")  # $$$$$$$$$$$$$$$$$ key
+account: LocalAccount = Account.from_key(private_key)
 assert private_key is not None, "You must set PRIVATE_KEY environment variable"
 assert private_key.startswith("0x"), "Private key must start with 0x hex prefix"
 
@@ -44,12 +50,36 @@ eth_testnet = Network("Goerli Testnet", "eth-goerli.g.alchemy.com/v2/", "https:/
 network = eth_testnet
 # *******
 
-account: LocalAccount = Account.from_key(private_key)
-
-
 web3 = network.web_socket_connection()
-print(web3.isConnected())
+assert web3.isConnected()
 web3.middleware_onion.add(construct_sign_and_send_raw_middleware(account))
+
+
+def tx_reciept_polling_worker():
+    # each thread requires its own web socket connection (I think)
+    web3 = network.web_socket_connection()
+    assert web3.isConnected()
+    while True:
+        try:
+            tx = q.get(block=False)  # If `False`, the program is not blocked
+            try:
+                print(f"polling for tx receipt round {tx['poll_round']}")
+                sleep(.5)
+                tx_reciept = web3.eth.getTransactionReceipt(tx.hash.hex())
+                # TODO: save to DB
+                q.task_done()  # https://stackoverflow.com/questions/49637086/python-what-is-queue-task-done-used-for
+                print("Success ...found tx_reciept: ", tx_reciept)
+                import ipdb
+                ipdb.set_trace()
+            except TransactionNotFound:
+                tx.__dict__['poll_round'] = tx.__dict__['poll_round'] + 1
+                q.put(tx)
+        except queue.Empty:
+            sleep(.5)
+            print("waiting for item to be put in the polling queue")
+
+
+threading.Thread(target=tx_reciept_polling_worker, daemon=True).start()  # Turn-on the worker thread.
 
 if network.name == "Ethereum Mainnet":
     boris = "borisdev.eth"
@@ -96,9 +126,13 @@ for name, address in addresses.items():
 
 # send transaction
 tx_hash = web3.eth.sendRawTransaction(signed_tx.rawTransaction)
+# get transaction from hash returned to caller/requestor
+tx = web3.eth.getTransaction(tx_hash)
+tx.__dict__['poll_round'] = 0
+# print("tx: ", tx)
 
-# get transaction hash
-print("toHex(tx_hash): ", web3.toHex(tx_hash))
+# put item in polling work queue..waiting for transaction to be mined and then we get the receipt
+q.put(tx)
 
 for name, address in addresses.items():
     wei_per_eth = 10**18
@@ -123,18 +157,6 @@ for name, address in addresses.items():
 # with your local private key through middleware and you no longer get the error
 # "ValueError: The method eth_sendTransaction does not exist/is not available
 
-
-# get transaction from hash returned to caller/requestor
-tx = web3.eth.getTransaction(tx_hash)
-print("tx: ", tx)
-print()
-tx_reciept = polling2.poll(
-    lambda: web3.eth.getTransactionReceipt(tx_hash),
-    ignore_exceptions=(TransactionNotFound,),
-    timeout=30,
-    step=0.5)
-print("tx_reciept: ", tx_reciept)
-
 # https://docs.python.org/3/library/queue.html
 
 # TODO: add new fields to tx reciept
@@ -145,3 +167,8 @@ print("tx_reciept: ", tx_reciept)
 # - account amount after tx
 # - logs -- uniswap price before
 # - logs -- uniswap price after
+
+
+# Block main thread until all items in the queue have been gotten and processed
+q.join()
+print('All work completed')
