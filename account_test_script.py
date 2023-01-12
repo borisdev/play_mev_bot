@@ -11,6 +11,7 @@ from eth_account.signers.local import LocalAccount
 from web3.middleware import construct_sign_and_send_raw_middleware
 from web3.auto import Web3
 from web3.exceptions import TransactionNotFound
+from datetime import datetime
 
 q = queue.Queue()  # inter-thread message channel
 
@@ -69,6 +70,16 @@ def tx_reciept_polling_worker():
                 # TODO: save to DB
                 q.task_done()  # https://stackoverflow.com/questions/49637086/python-what-is-queue-task-done-used-for
                 print("Success ...found tx_reciept: ", tx_reciept)
+                tx_end_time = datetime.now()
+                tx_reciept.__dict__['end_time'] = tx_end_time
+                tx_reciept.__dict__['start_time'] = tx.__dict__['tx_start_time']
+                timedelta = tx_end_time - tx.__dict__['tx_start_time']
+                tx_reciept.__dict__['start_block_number'] = tx.__dict__['start_block_number']
+                tx_reciept.__dict__['elapsed_seconds'] = timedelta.total_seconds()
+                gas_fee = tx_reciept.effectiveGasPrice / 10**8 * tx_reciept.gasUsed
+                print("gas fee of transaction:", gas_fee)
+                from pprint import pprint
+                pprint(tx_reciept.__dict__)
                 import ipdb
                 ipdb.set_trace()
             except TransactionNotFound:
@@ -79,8 +90,6 @@ def tx_reciept_polling_worker():
             print("waiting for item to be put in the polling queue")
 
 
-threading.Thread(target=tx_reciept_polling_worker, daemon=True).start()  # Turn-on the worker thread.
-
 if network.name == "Ethereum Mainnet":
     boris = "borisdev.eth"
 else:
@@ -89,13 +98,40 @@ else:
 # get the nonce.  Prevents one from sending the transaction twice
 nonce = web3.eth.getTransactionCount(boris)
 
+wei_per_eth = 10**18
+dollars_per_eth = 1252.16
+
 # build a transaction in a dictionary
+gas_limit_units = 2000000
+gas_price_gwei = 50
+total_gas_gwei = gas_limit_units * gas_price_gwei
+total_gas_eth = total_gas_gwei * 0.000000001
+total_gas_dollars = total_gas_eth / dollars_per_eth
+print("total gas cents:", total_gas_dollars * 100)
+assert total_gas_dollars < 2, "gas cost too high"
+
+# https://web3py.readthedocs.io/en/stable/gas_price.html
+# Gas price strategy is only supported for legacy transactions.
+# The London fork introduced maxFeePerGas and maxPriorityFeePerGas transaction parameters which should be used over gasPrice whenever possible.
 tx = {
     'nonce': nonce,
     'to': chuck,
-    'value': 1,
-    'gas': 2000000,
-    'gasPrice': web3.toWei('50', 'gwei')
+    'value': 1,  # wei
+    'gas': gas_limit_units,  # in gwei
+    # 'gasPrice': web3.toWei(gas_price_gwei, 'gwei')
+    'maxFeePerGas': 1000,
+    'maxPriorityFeePerGas': 667667,
+}
+# invalid sender
+
+tx = {
+    'nonce': nonce,
+    'to': chuck,
+    'value': 1,  # wei
+    'gas': gas_limit_units,  # in gwei
+    'gasPrice': web3.toWei(gas_price_gwei, 'gwei')
+    # 'maxFeePerGas': 1000,
+    # 'maxPriorityFeePerGas': 667667,
 }
 
 # sign the transaction
@@ -107,8 +143,6 @@ addresses = {
 }
 
 for name, address in addresses.items():
-    wei_per_eth = 10**18
-    dollars_per_eth = 1252.16
     wei_balance = web3.eth.getBalance(address)
     ether_balance = web3.fromWei(wei_balance, "ether")
     balance_views = {}
@@ -126,9 +160,13 @@ for name, address in addresses.items():
 
 # send transaction
 tx_hash = web3.eth.sendRawTransaction(signed_tx.rawTransaction)
+threading.Thread(target=tx_reciept_polling_worker, daemon=True).start()  # Turn-on the worker thread.
+tx_start_time = datetime.now()
 # get transaction from hash returned to caller/requestor
 tx = web3.eth.getTransaction(tx_hash)
 tx.__dict__['poll_round'] = 0
+tx.__dict__['tx_start_time'] = tx_start_time
+tx.__dict__['start_block_number'] = web3.eth.block_number
 # print("tx: ", tx)
 
 # put item in polling work queue..waiting for transaction to be mined and then we get the receipt
