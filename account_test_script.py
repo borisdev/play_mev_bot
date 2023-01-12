@@ -1,5 +1,7 @@
 import os
-from time import sleep
+from time import (
+    sleep,
+    perf_counter)
 import threading
 import queue
 from os.path import join, dirname
@@ -11,7 +13,6 @@ from eth_account.signers.local import LocalAccount
 from web3.middleware import construct_sign_and_send_raw_middleware
 from web3.auto import Web3
 from web3.exceptions import TransactionNotFound
-from datetime import datetime
 
 q = queue.Queue()  # inter-thread message channel
 
@@ -69,17 +70,24 @@ def tx_reciept_polling_worker():
                 tx_reciept = web3.eth.getTransactionReceipt(tx.hash.hex())
                 # TODO: save to DB
                 q.task_done()  # https://stackoverflow.com/questions/49637086/python-what-is-queue-task-done-used-for
-                print("Success ...found tx_reciept: ", tx_reciept)
-                tx_end_time = datetime.now()
-                tx_reciept.__dict__['end_time'] = tx_end_time
-                tx_reciept.__dict__['start_time'] = tx.__dict__['tx_start_time']
-                timedelta = tx_end_time - tx.__dict__['tx_start_time']
-                tx_reciept.__dict__['start_block_number'] = tx.__dict__['start_block_number']
-                tx_reciept.__dict__['elapsed_seconds'] = timedelta.total_seconds()
-                gas_fee = tx_reciept.effectiveGasPrice / 10**8 * tx_reciept.gasUsed
-                print("gas fee of transaction:", gas_fee)
+                tx_end_time = perf_counter()
+
+                meta = dict(
+                    end_time=tx_end_time,
+                    start_time=tx.__dict__['tx_start_time'],
+                    elapsed_seconds=tx_end_time - tx.__dict__['tx_start_time'],
+                    start_block_number=tx.__dict__['start_block_number'],
+                    gas_fee=tx_reciept.effectiveGasPrice / 10**8 * tx_reciept.gasUsed
+                )
+
+                tx = dict(
+                    reciept=tx_reciept,
+                    meta=meta
+                )
+
+                print("gas fee of transaction:", meta["gas_fee"])
                 from pprint import pprint
-                pprint(tx_reciept.__dict__)
+                pprint(tx)
                 import ipdb
                 ipdb.set_trace()
             except TransactionNotFound:
@@ -161,11 +169,10 @@ for name, address in addresses.items():
 # send transaction
 tx_hash = web3.eth.sendRawTransaction(signed_tx.rawTransaction)
 threading.Thread(target=tx_reciept_polling_worker, daemon=True).start()  # Turn-on the worker thread.
-tx_start_time = datetime.now()
 # get transaction from hash returned to caller/requestor
 tx = web3.eth.getTransaction(tx_hash)
 tx.__dict__['poll_round'] = 0
-tx.__dict__['tx_start_time'] = tx_start_time
+tx.__dict__['tx_start_time'] = perf_counter()
 tx.__dict__['start_block_number'] = web3.eth.block_number
 # print("tx: ", tx)
 

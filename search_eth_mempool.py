@@ -1,6 +1,8 @@
 import os
+import traceback
 from os.path import join, dirname
 from web3.auto import Web3
+from web3.exceptions import TransactionNotFound
 import asyncio
 from dotenv import load_dotenv
 from pancake_swap_abi import pancake_swap_abi
@@ -10,23 +12,23 @@ load_dotenv(dotenv_path)
 
 ALCHEMY_AUTH_TOKEN = os.environ.get("ALCHEMY_AUTH_TOKEN")
 wss = f'wss://eth-mainnet.g.alchemy.com/v2/{ALCHEMY_AUTH_TOKEN}'
-web3 = Web3(Web3.WebsocketProvider(wss))
+node = Web3(Web3.WebsocketProvider(wss))
 
-assert web3.isConnected()
+assert node.isConnected()
 
 
 # add an address you want to filter pending transactions for
 # make sure the address is in the correct format
 pancake_swap = '0x10ed43c718714eb63d5aa57b78b54704e256024e'
-router = web3.toChecksumAddress('0x10ed43c718714eb63d5aa57b78b54704e256024e')
-Contract = web3.eth.contract(address=router, abi=pancake_swap_abi)
+router = node.toChecksumAddress('0x10ed43c718714eb63d5aa57b78b54704e256024e')
+Contract = node.eth.contract(address=router, abi=pancake_swap_abi)
 
 
 def handle_event(event):
 
     tx_hash = event.hex()  # transaction = Web3.toJSON(event).strip('"')
     try:
-        transaction = web3.eth.get_transaction(tx_hash)
+        transaction = node.eth.get_transaction(tx_hash)
         to = transaction['to']
         input_data = transaction['input']
         if to == router:  # pancakeswap router
@@ -43,19 +45,22 @@ def handle_event(event):
             ipdb.set_trace()
         else:
             print('Not what we want')
-    except Exception as err:
-        # print transactions with errors. Expect to see transactions people submitted with errors
-        # etherscan shows these as existing but very very old
+    except TransactionNotFound:
+        # Expect to see transactions people submitted with errors
+        # etherscan shows not found txs as existing but many days old
         pass
-        # print(f'error: {err}')
+    except Exception:
+        print(traceback.format_exc())
+        import ipdb
+        ipdb.set_trace()
 
 
 async def fetch_txs_in_mempool():
     poll_interval = 2
     while True:
-        for event in web3.eth.filter('pending').get_new_entries():
-            handle_event(event)
-        await asyncio.sleep(poll_interval)
+        for event in node.eth.filter('pending', {}).get_new_entries():
+            handle_event(event)  # add this to the stack of work, and keep going....not blocking
+        await asyncio.sleep(poll_interval)  # let event pool controller do other work now
 
 
 def main():
