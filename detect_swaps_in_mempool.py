@@ -1,6 +1,7 @@
 import os
 import sys
 import traceback
+from dataclasses import dataclass
 from os.path import join, dirname
 from web3.auto import Web3
 from web3.exceptions import TransactionNotFound
@@ -17,16 +18,35 @@ node = Web3(Web3.WebsocketProvider(wss))
 
 assert node.isConnected()
 
+@dataclass
+class Dex:
+    """
+    Router making exchanges between two token contracts at a dynamically generated price
+    """
+    name: str
+    address: str
+    abi: list
+    contract: str
 
-# add an address you want to filter pending transactions for
-# make sure the address is in the correct format
-target = "pancake_swap"
-print(f"waiting for a pending tx to appear for {target}")
-exchanges = {
-    "pancake_swap": '0x10ed43c718714eb63d5aa57b78b54704e256024e'
-}
-router = node.toChecksumAddress(exchanges[target])
-Contract = node.eth.contract(address=router, abi=pancake_swap_abi)
+    def __init__(self, name: str, address: str, abi: str):
+        self.name = name
+        self.address = node.toChecksumAddress(address)
+        self.contract = node.eth.contract(address=address, abi=abi)
+
+    def contract_decode_tx(self, tx):
+        return self.contract.decode_function_input(tx['input'])
+
+
+# routers
+targets = [
+    Dex("PancakeRouter", "0xEfF92A263d31888d860bD50809A8D171709b7b1c", pancake_swap_abi),
+    Dex("Uniswap V2: Router 2", "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"),
+    Dex("Uniswap V3: Router", "0xE592427A0AEce92De3Edee1F18E0157C05861564"),
+    Dex("Uniswap V3: Router 2", "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45")
+]
+
+print(f"waiting for a pending tx to appear for {targets}")
+# "pancake_swap": '0x10ed43c718714eb63d5aa57b78b54704e256024e',  # Binance smart chain
 
 
 def handle_event(event):
@@ -37,8 +57,7 @@ def handle_event(event):
         to = transaction['to']
         input_data = transaction['input']
         # print("pancake swap:", to == router)
-        if to == router:  # pancakeswap router
-            decode = Contract.decode_function_input(input_data)
+        if to == router_address:  # pancakeswap router
             # print the transaction and its details
             # you will be able to see the functions that are passed to the router
             # try printing the following:
@@ -52,7 +71,7 @@ def handle_event(event):
             sys.exit()
 
         else:
-            print(f"Skipping since not {target}'s router address {router}")
+            print(f"Skipping since not {target}'s router address {router_address}")
     except TransactionNotFound:
         # Expect to see transactions people submitted with errors
         # etherscan shows not found txs as existing but many days old
