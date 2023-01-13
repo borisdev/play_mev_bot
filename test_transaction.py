@@ -1,4 +1,5 @@
 import os
+from enum import Enum
 from time import (
     sleep,
     perf_counter)
@@ -13,6 +14,14 @@ from eth_account.signers.local import LocalAccount
 from web3.middleware import construct_sign_and_send_raw_middleware
 from web3.auto import Web3
 from web3.exceptions import TransactionNotFound
+
+wei_per_eth = 10**18
+dollars_per_eth = 1252.16
+
+
+class tx_field(Enum):
+    gas_price_in_dollars = "gas_price_in_dollars"
+
 
 q = queue.Queue()  # inter-thread message channel
 
@@ -57,6 +66,58 @@ assert web3.isConnected()
 web3.middleware_onion.add(construct_sign_and_send_raw_middleware(account))
 
 
+def gwei2dollars(gwei):
+    """
+    - all gas prices are in gwei
+    - 1 gwei is 10**9 wei
+    - gwie denotes giga-wei
+    - wie is the smallest denomination
+    - 1 eth is 10**9 gwie
+    """
+
+    eth = gwei / 10**9
+    dollars = dollars_per_eth * eth
+    return dollars
+
+
+def wei2dollars(wei):
+    """
+    - all gas prices are in gwei
+    - 1 gwei is 10**9 wei
+    - gwie denotes giga-wei
+    - wie is the smallest denomination
+    - 1 eth is 10**9 gwie
+    """
+
+    eth = wei / 10**18
+    dollars = dollars_per_eth * eth
+    return dollars
+
+
+@dataclass
+class TxMeta:
+    """
+    effectiveGasPrice - Number:
+        The actual value per gas deducted from the senders account.
+        Before EIP-1559, this is equal to the transaction’s gas price.
+        After, it is equal to baseFeePerGas + min(maxFeePerGas - baseFeePerGas, maxPriorityFeePerGas).
+    """
+
+    elapsed_seconds: float
+    gas_fee_in_dollars: float
+    start_block_number: int
+
+    def __init__(self, tx, reciept):
+        self.elapsed_seconds = perf_counter() - tx.__dict__['tx_start_time']
+        self.start_block_number = tx.__dict__['start_block_number']
+        self.gas_fee_in_dollars = wei2dollars(reciept.effectiveGasPrice * reciept.gasUsed)
+        print("---- debug gas ----")
+        print("price in gwei:", reciept.effectiveGasPrice / 10**9)
+        print("gas used:", reciept.gasUsed)
+        print("gas fee in dollars:", self.gas_fee_in_dollars)
+        print()
+
+
 def tx_reciept_polling_worker():
     # each thread requires its own web socket connection (I think)
     web3 = network.web_socket_connection()
@@ -68,28 +129,18 @@ def tx_reciept_polling_worker():
                 print(f"polling for tx receipt round {tx['poll_round']}")
                 sleep(.5)
                 tx_reciept = web3.eth.getTransactionReceipt(tx.hash.hex())
-                # TODO: save to DB
-                q.task_done()  # https://stackoverflow.com/questions/49637086/python-what-is-queue-task-done-used-for
-                tx_end_time = perf_counter()
-
-                meta = dict(
-                    end_time=tx_end_time,
-                    start_time=tx.__dict__['tx_start_time'],
-                    elapsed_seconds=tx_end_time - tx.__dict__['tx_start_time'],
-                    start_block_number=tx.__dict__['start_block_number'],
-                    gas_fee=tx_reciept.effectiveGasPrice / 10**8 * tx_reciept.gasUsed
-                )
-
                 tx = dict(
                     reciept=tx_reciept,
-                    meta=meta
+                    meta=TxMeta(tx, tx_reciept)
                 )
+                # TODO: save this tx to a DB
+                q.task_done()  # https://stackoverflow.com/questions/49637086/python-what-is-queue-task-done-used-for
 
-                print("gas fee of transaction:", meta["gas_fee"])
                 from pprint import pprint
                 pprint(tx)
                 import ipdb
                 ipdb.set_trace()
+
             except TransactionNotFound:
                 tx.__dict__['poll_round'] = tx.__dict__['poll_round'] + 1
                 q.put(tx)
@@ -106,16 +157,12 @@ else:
 # get the nonce.  Prevents one from sending the transaction twice
 nonce = web3.eth.getTransactionCount(boris)
 
-wei_per_eth = 10**18
-dollars_per_eth = 1252.16
-
 # build a transaction in a dictionary
-gas_limit_units = 2000000
-gas_price_gwei = 50
-total_gas_gwei = gas_limit_units * gas_price_gwei
-total_gas_eth = total_gas_gwei * 0.000000001
-total_gas_dollars = total_gas_eth / dollars_per_eth
-print("total gas cents:", total_gas_dollars * 100)
+gas_limit = 30000  # meansured by computational steps
+max_fee_per_gas_gwei = 50
+total_gas_gwei = gas_limit * max_fee_per_gas_gwei
+total_gas_dollars = gwei2dollars(total_gas_gwei)
+print("total gas dollars:", total_gas_dollars)
 assert total_gas_dollars < 2, "gas cost too high"
 
 # https://web3py.readthedocs.io/en/stable/gas_price.html
@@ -125,10 +172,9 @@ tx = {
     'nonce': nonce,
     'to': chuck,
     'value': 1,  # wei
-    'gas': gas_limit_units,  # in gwei
-    # 'gasPrice': web3.toWei(gas_price_gwei, 'gwei')
-    'maxFeePerGas': 1000,
-    'maxPriorityFeePerGas': 667667,
+    'gasLimit': gas_limit,  # measured by computational steps
+    'maxFeePerGas': max_fee_per_gas_gwei,
+    'maxPriorityFeePerGas': 10,
 }
 # invalid sender
 
@@ -136,10 +182,8 @@ tx = {
     'nonce': nonce,
     'to': chuck,
     'value': 1,  # wei
-    'gas': gas_limit_units,  # in gwei
-    'gasPrice': web3.toWei(gas_price_gwei, 'gwei')
-    # 'maxFeePerGas': 1000,
-    # 'maxPriorityFeePerGas': 667667,
+    'gas': gas_limit,  # measured by computational steps
+    'gasPrice': web3.toWei(max_fee_per_gas_gwei, 'gwei')
 }
 
 # sign the transaction
@@ -171,6 +215,7 @@ tx_hash = web3.eth.sendRawTransaction(signed_tx.rawTransaction)
 threading.Thread(target=tx_reciept_polling_worker, daemon=True).start()  # Turn-on the worker thread.
 # get transaction from hash returned to caller/requestor
 tx = web3.eth.getTransaction(tx_hash)
+# add more meta data so during call back we can add even more meta data
 tx.__dict__['poll_round'] = 0
 tx.__dict__['tx_start_time'] = perf_counter()
 tx.__dict__['start_block_number'] = web3.eth.block_number
@@ -208,8 +253,10 @@ for name, address in addresses.items():
 # - time span to get transaction
 # - start tx block number
 # - block number
-# - account amount before tx
-# - account amount after tx
+# - sender account amount before tx
+# - sender account amount after tx
+# - reciever account amount before tx
+# - reciever account amount after tx
 # - logs -- uniswap price before
 # - logs -- uniswap price after
 

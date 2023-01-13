@@ -19,8 +19,12 @@ assert node.isConnected()
 
 # add an address you want to filter pending transactions for
 # make sure the address is in the correct format
-pancake_swap = '0x10ed43c718714eb63d5aa57b78b54704e256024e'
-router = node.toChecksumAddress('0x10ed43c718714eb63d5aa57b78b54704e256024e')
+target = "pancake_swap"
+print(f"waiting for a pending tx to appear for {target}")
+exchanges = {
+    "pancake_swap": '0x10ed43c718714eb63d5aa57b78b54704e256024e'
+}
+router = node.toChecksumAddress(exchanges[target])
 Contract = node.eth.contract(address=router, abi=pancake_swap_abi)
 
 
@@ -31,6 +35,7 @@ def handle_event(event):
         transaction = node.eth.get_transaction(tx_hash)
         to = transaction['to']
         input_data = transaction['input']
+        print("pancake swap:", to == router)
         if to == router:  # pancakeswap router
             decode = Contract.decode_function_input(input_data)
             # print the transaction and its details
@@ -57,8 +62,13 @@ def handle_event(event):
 
 async def fetch_txs_in_mempool():
     poll_interval = 2
+    filter_params = {
+        "fromBlock": "pending",
+        "address": router
+    }
     while True:
-        for event in node.eth.filter('pending', {}).get_new_entries():
+        # for event in node.eth.filter(filter_params).get_new_entries():
+        for event in node.eth.filter("pending").get_new_entries():
             handle_event(event)  # add this to the stack of work, and keep going....not blocking
         await asyncio.sleep(poll_interval)  # let event pool controller do other work now
 
