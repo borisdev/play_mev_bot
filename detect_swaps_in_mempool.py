@@ -1,4 +1,5 @@
 import os
+import sys
 import traceback
 from os.path import join, dirname
 from web3.auto import Web3
@@ -35,7 +36,7 @@ def handle_event(event):
         transaction = node.eth.get_transaction(tx_hash)
         to = transaction['to']
         input_data = transaction['input']
-        print("pancake swap:", to == router)
+        # print("pancake swap:", to == router)
         if to == router:  # pancakeswap router
             decode = Contract.decode_function_input(input_data)
             # print the transaction and its details
@@ -48,8 +49,10 @@ def handle_event(event):
             print(decode)
             import ipdb
             ipdb.set_trace()
+            sys.exit()
+
         else:
-            print('Not what we want')
+            print(f"Skipping since not {target}'s router address {router}")
     except TransactionNotFound:
         # Expect to see transactions people submitted with errors
         # etherscan shows not found txs as existing but many days old
@@ -62,10 +65,10 @@ def handle_event(event):
 
 async def fetch_txs_in_mempool():
     poll_interval = 2
-    filter_params = {
-        "fromBlock": "pending",
-        "address": router
-    }
+    # filter_params = {
+    #     "fromBlock": "pending",
+    #     "address": router
+    # }
     while True:
         # for event in node.eth.filter(filter_params).get_new_entries():
         for event in node.eth.filter("pending").get_new_entries():
