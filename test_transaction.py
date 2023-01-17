@@ -17,7 +17,8 @@ from web3.exceptions import TransactionNotFound
 from web3.types import TxParams, Wei
 from flashbots import flashbots
 
-TEST = True
+USE_GOERLI = TEST = True
+CHAIN_ID = 5 if USE_GOERLI else 1
 USE_OLD_TX_PARAMS_SCHEMA = False
 
 wei_per_eth = 10**18
@@ -177,7 +178,7 @@ assert total_gas_liability_dollars < 4, "tx canceled! ...gas cost too high"
 # The London fork introduced maxFeePerGas and maxPriorityFeePerGas transaction parameters which should be used over gasPrice whenever possible.
 
 params: TxParams = {
-    'from': boris,
+    # 'from': boris,
     'to': chuck,
     'value': 2,  # wei
     'nonce': web3.eth.getTransactionCount(boris),  # prevents sending dupes
@@ -192,31 +193,14 @@ new_params_schema = dict(
     gas=my_gas_limit,  # aka computation units
     maxFeePerGas=my_gas_price,  # aka max cost per compute unit
     maxPriorityFeePerGas=10,  # aka give a tip to miner to prefer this tx over others
+    chainId=CHAIN_ID,
+    type=2,
 )
 
 if USE_OLD_TX_PARAMS_SCHEMA:
     params.update(old_params_schema)
 else:
     params.update(new_params_schema)
-
-
-params = {
-    'nonce': web3.eth.getTransactionCount(boris),
-    'to': chuck,
-    'value': 1,  # wei
-    'gas': my_gas_limit,  # measured by computational steps
-    'gasPrice': my_gas_price
-}
-
-params = {
-    'nonce': web3.eth.getTransactionCount(boris),
-    'to': chuck,
-    'value': 1,  # wei
-    'gas': my_gas_limit,  # measured by computational steps
-    'gasPrice': my_gas_price
-    'maxFeePerGas': my_gas_price,
-    'maxPriorityFeePerGas': 10,
-}
 
 signed_tx = web3.eth.account.sign_transaction(params, private_key)
 
