@@ -165,12 +165,12 @@ else:
 # build a transaction in a dictionary
 
 my_gas_limit = 30000  # meansured by computational steps
-my_gas_price = web3.toWei(50, 'gwei')
+my_gas_price = web3.toWei(100, 'gwei')
 
 total_gas_liability = my_gas_limit * my_gas_price
 total_gas_liability_dollars = gwei2dollars(total_gas_liability / 10**9)
 print("*** total gas dollars ***:", total_gas_liability_dollars)
-assert total_gas_liability_dollars < 2, "tx canceled! ...gas cost too high"
+assert total_gas_liability_dollars < 4, "tx canceled! ...gas cost too high"
 
 # https://web3py.readthedocs.io/en/stable/gas_price.html
 # Gas price strategy is only supported for legacy transactions.
@@ -198,6 +198,25 @@ if USE_OLD_TX_PARAMS_SCHEMA:
     params.update(old_params_schema)
 else:
     params.update(new_params_schema)
+
+
+params = {
+    'nonce': web3.eth.getTransactionCount(boris),
+    'to': chuck,
+    'value': 1,  # wei
+    'gas': my_gas_limit,  # measured by computational steps
+    'gasPrice': my_gas_price
+}
+
+params = {
+    'nonce': web3.eth.getTransactionCount(boris),
+    'to': chuck,
+    'value': 1,  # wei
+    'gas': my_gas_limit,  # measured by computational steps
+    'gasPrice': my_gas_price
+    'maxFeePerGas': my_gas_price,
+    'maxPriorityFeePerGas': 10,
+}
 
 signed_tx = web3.eth.account.sign_transaction(params, private_key)
 
