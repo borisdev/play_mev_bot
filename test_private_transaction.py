@@ -19,6 +19,7 @@ Notes:
 - The base unit in the Ethereum protocol is wei (not Ether or gwei)
 
 """
+from uuid import uuid4
 from pprint import pprint
 import os
 from enum import Enum
@@ -34,7 +35,7 @@ from web3.middleware import construct_sign_and_send_raw_middleware
 from web3.auto import Web3
 from web3.exceptions import TransactionNotFound
 from web3.types import TxParams, Wei
-from flashbots import flashbots
+from flashbots import flashbot
 
 USE_GOERLI_TEST = True
 CHAIN_ID = 5 if USE_GOERLI_TEST else 1
@@ -84,7 +85,7 @@ else:
     network = eth_mainnet
 # *******
 
-web3 = network.web_socket_connection()
+w3 = web3 = network.web_socket_connection()
 assert web3.isConnected()
 web3.middleware_onion.add(construct_sign_and_send_raw_middleware(account))
 
@@ -175,28 +176,56 @@ bundle = [
     {"signed_transaction": signed_tx}
 ]
 
-pprint(params)
-
-print("sending transaction....")
-
-tx_hash = web3.eth.sendRawTransaction(signed_tx.rawTransaction)  # could have been done via middleware
-tx_request = web3.eth.getTransaction(tx_hash)
-tx_request.__dict__['tx_start_time'] = perf_counter()
-tx_request.__dict__['start_block_number'] = web3.eth.block_number
-
-# Polling
-poll_round = 0
+# keep trying to send bundle until it gets mined
 while True:
+    block = w3.eth.block_number
+    print(f"Simulating on block {block}")
+    # simulate bundle on current block
     try:
-        tx_reciept = web3.eth.getTransactionReceipt(tx_hash.hex())
-        tx = dict(
-            reciept=tx_reciept,
-            meta=TxMeta(tx_request, tx_reciept)
-        )
+        w3.flashbots.simulate(bundle, block)
+        print("Simulation successful.")
+    except Exception as e:
+        print("Simulation error", e)
+        break
+
+    # send bundle targeting next block
+    print(f"Sending bundle targeting block {block+1}")
+    replacement_uuid = str(uuid4())
+    print(f"replacementUuid {replacement_uuid}")
+    send_result = w3.flashbots.send_bundle(
+        bundle,
+        target_block_number=block + 1,
+        opts={"replacementUuid": replacement_uuid},
+    )
+    print("bundleHash", w3.toHex(send_result.bundle_hash()))
+
+    stats_v1 = w3.flashbots.get_bundle_stats(
+        w3.toHex(send_result.bundle_hash()), block
+    )
+    print("bundleStats v1", stats_v1)
+
+    stats_v2 = w3.flashbots.get_bundle_stats_v2(
+        w3.toHex(send_result.bundle_hash()), block
+    )
+    print("bundleStats v2", stats_v2)
+
+    send_result.wait()
+    try:
+        receipts = send_result.receipts()
+        print(f"\nBundle was mined in block {receipts[0].blockNumber}\a")
         break
     except TransactionNotFound:
-        print(f"polling round {poll_round} transaction to get transaction reciept...", end='\r')
-        poll_round = poll_round + 1
-        if poll_round > 120:
-            raise Exception("reached polling time out 1m")
-        sleep(.5)
+        print(f"Bundle not found in block {block+1}")
+        # essentially a no-op but it shows that the function works
+        cancel_res = w3.flashbots.cancel_bundles(replacement_uuid)
+        print(f"canceled {cancel_res}")
+
+sender = boris
+receiverAddress = chuck
+from uuid import uuid4
+print(
+    f"Sender account balance: {Web3.fromWei(w3.eth.get_balance(sender), 'ether')} ETH"
+)
+print(
+    f"Receiver account balance: {Web3.fromWei(w3.eth.get_balance(receiverAddress), 'ether')} ETH"
+)
