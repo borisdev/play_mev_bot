@@ -159,23 +159,23 @@ nonce = web3.eth.getTransactionCount(boris)
 
 # build a transaction in a dictionary
 gas_limit = 30000  # meansured by computational steps
-max_fee_per_gas_gwei = 50
+max_fee_per_gas_gwei = 100
 total_gas_gwei = gas_limit * max_fee_per_gas_gwei
 total_gas_dollars = gwei2dollars(total_gas_gwei)
 print("total gas dollars:", total_gas_dollars)
-assert total_gas_dollars < 2, "gas cost too high"
+assert total_gas_dollars < 4, "gas cost too high"
 
 # https://web3py.readthedocs.io/en/stable/gas_price.html
 # Gas price strategy is only supported for legacy transactions.
 # The London fork introduced maxFeePerGas and maxPriorityFeePerGas transaction parameters which should be used over gasPrice whenever possible.
-tx = {
-    'nonce': nonce,
-    'to': chuck,
-    'value': 1,  # wei
-    'gasLimit': gas_limit,  # measured by computational steps
-    'maxFeePerGas': max_fee_per_gas_gwei,
-    'maxPriorityFeePerGas': 10,
-}
+#tx = {
+#    'nonce': nonce,
+#    'to': chuck,
+#    'value': 1,  # wei
+#    'gasLimit': gas_limit,  # measured by computational steps
+#    'maxFeePerGas': max_fee_per_gas_gwei,
+#    'maxPriorityFeePerGas': 10,
+#}
 # invalid sender
 
 tx = {
