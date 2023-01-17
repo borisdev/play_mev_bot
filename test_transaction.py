@@ -14,6 +14,11 @@ from eth_account.signers.local import LocalAccount
 from web3.middleware import construct_sign_and_send_raw_middleware
 from web3.auto import Web3
 from web3.exceptions import TransactionNotFound
+from web3.types import TxParams, Wei
+from flashbots import flashbots
+
+TEST = True
+USE_OLD_TX_PARAMS_SCHEMA = False
 
 wei_per_eth = 10**18
 dollars_per_eth = 1252.16
@@ -57,8 +62,10 @@ eth_testnet = Network("Goerli Testnet", "eth-goerli.g.alchemy.com/v2/", "https:/
 
 # *******
 # TODO: make this a CLI arg
-# network = eth_mainnet
-network = eth_testnet
+if TEST:
+    network = eth_testnet
+else:
+    network = eth_mainnet
 # *******
 
 web3 = network.web_socket_connection()
@@ -154,40 +161,45 @@ if network.name == "Ethereum Mainnet":
 else:
     boris = account.address
 
-# get the nonce.  Prevents one from sending the transaction twice
-nonce = web3.eth.getTransactionCount(boris)
-
+# The base unit in the Ethereum protocol is wei (not Ether or gwei)
 # build a transaction in a dictionary
-gas_limit = 30000  # meansured by computational steps
-max_fee_per_gas_gwei = 50
-total_gas_gwei = gas_limit * max_fee_per_gas_gwei
-total_gas_dollars = gwei2dollars(total_gas_gwei)
-print("total gas dollars:", total_gas_dollars)
-assert total_gas_dollars < 2, "gas cost too high"
+
+my_gas_limit = 30000  # meansured by computational steps
+my_gas_price = web3.toWei(50, 'gwei')
+
+total_gas_liability = my_gas_limit * my_gas_price
+total_gas_liability_dollars = gwei2dollars(total_gas_liability / 10**9)
+print("*** total gas dollars ***:", total_gas_liability_dollars)
+assert total_gas_liability_dollars < 2, "tx canceled! ...gas cost too high"
 
 # https://web3py.readthedocs.io/en/stable/gas_price.html
 # Gas price strategy is only supported for legacy transactions.
 # The London fork introduced maxFeePerGas and maxPriorityFeePerGas transaction parameters which should be used over gasPrice whenever possible.
-tx = {
-    'nonce': nonce,
-    'to': chuck,
-    'value': 1,  # wei
-    'gasLimit': gas_limit,  # measured by computational steps
-    'maxFeePerGas': max_fee_per_gas_gwei,
-    'maxPriorityFeePerGas': 10,
-}
-# invalid sender
 
-tx = {
-    'nonce': nonce,
+params: TxParams = {
+    'from': boris,
     'to': chuck,
-    'value': 1,  # wei
-    'gas': gas_limit,  # measured by computational steps
-    'gasPrice': web3.toWei(max_fee_per_gas_gwei, 'gwei')
+    'value': 2,  # wei
+    'nonce': web3.eth.getTransactionCount(boris),  # prevents sending dupes
 }
 
-# sign the transaction
-signed_tx = web3.eth.account.sign_transaction(tx, private_key)
+old_params_schema = dict(
+    gas=my_gas_limit,
+    gasPrice=my_gas_price
+)
+
+new_params_schema = dict(
+    gas=my_gas_limit,  # aka computation units
+    maxFeePerGas=my_gas_price,  # aka max cost per compute unit
+    maxPriorityFeePerGas=10,  # aka give a tip to miner to prefer this tx over others
+)
+
+if USE_OLD_TX_PARAMS_SCHEMA:
+    params.update(old_params_schema)
+else:
+    params.update(new_params_schema)
+
+signed_tx = web3.eth.account.sign_transaction(params, private_key)
 
 addresses = {
     "boris": boris,
