@@ -61,7 +61,7 @@ ALCHEMY_AUTH_TOKEN = os.environ.get("ALCHEMY_AUTH_TOKEN")
 
 
 @dataclass
-class Network:
+class Blockchain:
     """Class for keeping track of info on a web3 network."""
     name: str
     rpc_endpoint: str
@@ -73,8 +73,8 @@ class Network:
         return web3
 
 
-eth_mainnet = Network("Ethereum Mainnet", "eth-mainnet.g.alchemy.com/v2/", "https://etherscan.io/")
-eth_testnet = Network("Goerli Testnet", "eth-goerli.g.alchemy.com/v2/", "https://goerli.etherscan.io/")  # Faucet: https://goerlifaucet.com/
+eth_mainnet = Blockchain("Ethereum Mainnet", "eth-mainnet.g.alchemy.com/v2/", "https://etherscan.io/")
+eth_testnet = Blockchain("Goerli Testnet", "eth-goerli.g.alchemy.com/v2/", "https://goerli.etherscan.io/")  # Faucet: https://goerlifaucet.com/
 
 
 # *******

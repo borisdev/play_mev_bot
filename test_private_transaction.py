@@ -20,74 +20,63 @@ Notes:
 
 """
 from uuid import uuid4
-from pprint import pprint
 import os
-from enum import Enum
 from time import (
-    sleep,
     perf_counter)
 from os.path import join, dirname
 from dotenv import load_dotenv
 from dataclasses import dataclass
 from eth_account import Account
 from eth_account.signers.local import LocalAccount
-from web3.middleware import construct_sign_and_send_raw_middleware
+# from web3.middleware import construct_sign_and_send_raw_middleware
 from web3.auto import Web3
 from web3.exceptions import TransactionNotFound
-from web3.types import TxParams, Wei
+from web3.types import TxParams  # ,Wei
 from flashbots import flashbot
 
-USE_GOERLI_TEST = True
-CHAIN_ID = 5 if USE_GOERLI_TEST else 1
+# settings.py and constants.py
+USE_GOERLI = True
+CHAIN_ID = 5 if USE_GOERLI else 1
 
+USE_GOERLI_TEST = True
 wei_per_eth = 10**18
 dollars_per_eth = 1252.16
-
-
-class tx_field(Enum):
-    gas_price_in_dollars = "gas_price_in_dollars"
-
-
 dotenv_path = join(dirname(__file__), '.env')
 load_dotenv(dotenv_path)
-
 chuck = os.environ.get("CHUCKS_PUBLIC_ETH_ADDRESS")  # $$$$$$$$$$$$$$$$$ key
+ALCHEMY_AUTH_TOKEN = os.environ.get("ALCHEMY_AUTH_TOKEN")
 private_key = os.environ.get("PRIVATE_KEY")  # $$$$$$$$$$$$$$$$$ key
-account: LocalAccount = Account.from_key(private_key)
 assert private_key is not None, "You must set PRIVATE_KEY environment variable"
 assert private_key.startswith("0x"), "Private key must start with 0x hex prefix"
+my_account: LocalAccount = Account.from_key(private_key)  # ETH_ACCOUNT_SIGNATURE
+# my_public_address = my_account.address if USE_GOERLI_TEST else "borisdev.eth"
+
+my_gas_limit = 30000  # meansured by computational steps
+my_gas_price = Web3.toWei(100, 'gwei')
 
 
-ALCHEMY_AUTH_TOKEN = os.environ.get("ALCHEMY_AUTH_TOKEN")
+def web_socket_connection():
+    if USE_GOERLI_TEST:
+        rpc_endpoint = "eth-goerli.g.alchemy.com/v2/"  # P2P network node
+        w3 = Web3(Web3.WebsocketProvider(f"wss://{rpc_endpoint}{ALCHEMY_AUTH_TOKEN}"))
+        assert w3.isConnected()
+        flashbot(w3, my_account, "https://relay-goerli.flashbots.net")
+    else:
+        rpc_endpoint = "eth-mainnet.g.alchemy.com/v2/"
+        w3 = Web3(Web3.WebsocketProvider(f"wss://{rpc_endpoint}{ALCHEMY_AUTH_TOKEN}"))
+        assert w3.isConnected()
+        flashbot(w3, my_account)
+
+    # OPTIONAL w3.middleware_onion.add(construct_sign_and_send_raw_middleware(my_account))
+
+    return w3
 
 
-@dataclass
-class Network:
-    """Class for keeping track of info on a web3 network."""
-    name: str
-    rpc_endpoint: str
-    block_explorer: str
+# from settings import w3
+w3 = web_socket_connection()
 
-    def web_socket_connection(self):
-        wss = f"wss://{self.rpc_endpoint}{ALCHEMY_AUTH_TOKEN}"
-        web3 = Web3(Web3.WebsocketProvider(wss))
-        return web3
-
-
-eth_mainnet = Network("Ethereum Mainnet", "eth-mainnet.g.alchemy.com/v2/", "https://etherscan.io/")
-eth_testnet = Network("Goerli Testnet", "eth-goerli.g.alchemy.com/v2/", "https://goerli.etherscan.io/")  # Faucet: https://goerlifaucet.com/
-
-
-# *******
-if USE_GOERLI_TEST:
-    network = eth_testnet
-else:
-    network = eth_mainnet
-# *******
-
-w3 = web3 = network.web_socket_connection()
-assert web3.isConnected()
-web3.middleware_onion.add(construct_sign_and_send_raw_middleware(account))
+# pytest these
+# utils to test my understanding
 
 
 def gwei2dollars(gwei):
@@ -144,36 +133,47 @@ class TxMeta:
         # TODO: persist ... in DB or log file ?
 
 
-if network.name == "Ethereum Mainnet":
-    boris = "borisdev.eth"
-else:
-    boris = account.address
-
-
-my_gas_limit = 30000  # meansured by computational steps
-my_gas_price = web3.toWei(100, 'gwei')
-
 total_gas_liability = my_gas_limit * my_gas_price
 total_gas_liability_dollars = gwei2dollars(total_gas_liability / 10**9)
 print(" *** start new transaction ***")
 print("total potential liability in gas dollars:", total_gas_liability_dollars)
 assert total_gas_liability_dollars < 4, "tx canceled! ...gas cost too high"
 
-params: TxParams = {
+nonce = w3.eth.get_transaction_count(my_account.address)
+CHAIN_ID = 5 if USE_GOERLI else 1
+tx1: TxParams = {
     'to': chuck,
     'value': 2,
-    'nonce': web3.eth.getTransactionCount(boris),  # prevent dupes
     'gas': my_gas_limit,  # compute units
     'maxFeePerGas': my_gas_price,  # max price per compute unit
-    'maxPriorityFeePerGas': 10,  # incentive to validator to mine this
+    "maxPriorityFeePerGas": Web3.toWei(50, "gwei"),  # incentive to validator to mine this
+    'nonce': nonce,
     'chainId': CHAIN_ID,
     'type': 2,
 }
 
-signed_tx = web3.eth.account.sign_transaction(params, private_key)
+sender = my_account
+tx1_signed = sender.sign_transaction(tx1)
+receiverAddress = chuck
+tx2: TxParams = {
+    "to": receiverAddress,
+    "value": Web3.toWei(0.001, "ether"),
+    "gas": 21000,
+    "maxFeePerGas": Web3.toWei(200, "gwei"),
+    "maxPriorityFeePerGas": Web3.toWei(50, "gwei"),
+    "nonce": nonce + 1,
+    "chainId": CHAIN_ID,
+    "type": 2,
+}
 
 bundle = [
-    {"signed_transaction": signed_tx}
+    {"signed_transaction": tx1_signed.rawTransaction},
+    {"signer": sender, "transaction": tx2},
+]
+
+bundle = [
+    {"signed_transaction": tx1_signed.rawTransaction},
+    {"signer": sender, "transaction": tx2},
 ]
 
 # keep trying to send bundle until it gets mined
@@ -186,6 +186,10 @@ while True:
         print("Simulation successful.")
     except Exception as e:
         print("Simulation error", e)
+        print(" *** traceback *** ")
+        print("-------------------")
+        import traceback
+        print(traceback.format_exc())
         break
 
     # send bundle targeting next block
@@ -220,12 +224,10 @@ while True:
         cancel_res = w3.flashbots.cancel_bundles(replacement_uuid)
         print(f"canceled {cancel_res}")
 
-sender = boris
 receiverAddress = chuck
-from uuid import uuid4
 print(
-    f"Sender account balance: {Web3.fromWei(w3.eth.get_balance(sender), 'ether')} ETH"
+    f"Sender account balance: {w3.fromWei(w3.eth.get_balance(my_account.address), 'ether')} ETH"
 )
 print(
-    f"Receiver account balance: {Web3.fromWei(w3.eth.get_balance(receiverAddress), 'ether')} ETH"
+    f"Receiver account balance: {w3.fromWei(w3.eth.get_balance(receiverAddress), 'ether')} ETH"
 )
