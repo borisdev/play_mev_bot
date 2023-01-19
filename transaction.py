@@ -33,8 +33,7 @@ from eth_account.signers.local import LocalAccount
 from web3.middleware import construct_sign_and_send_raw_middleware
 from web3.auto import Web3
 from web3.exceptions import TransactionNotFound
-from web3.types import TxParams, Wei
-from flashbots import flashbots
+from web3.types import TxParams
 
 USE_GOERLI_TEST = True
 CHAIN_ID = 5 if USE_GOERLI_TEST else 1
