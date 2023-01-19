@@ -35,7 +35,7 @@ import settings
 
 receiverAddress = settings.CHUCKS_PUBLIC_ADDRESS
 
-w3 = settings.web_socket_connection(use_flashbots_relay=True)
+w3 = settings.w3
 
 # pytest these
 # utils to test my understanding
@@ -210,3 +210,16 @@ if __name__ == "__main__":
     send_flashbots_transaction_bundle(
         bundle,
         flashbot_relayer=True)
+
+    # UNISWAP TRADE EXAMPLE
+    # https://info.yewbow.org/#/
+    import json
+    with open('Uniswap_V2:_Router_2.abi') as file:
+        abi_def = json.load(file)
+    contract_addr = Web3.toChecksumAddress(settings.uniswap_v2_router)
+    contract = w3.eth.contract(contract_addr, abi=abi_def)
+    input_quantity_wei = 1
+    swap_path = [input_token_address, output_token_address]
+    swap_contract.functions.getAmountsOut(input_quantity_wei, swap_path).call()
+
+

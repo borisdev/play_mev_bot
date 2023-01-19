@@ -10,6 +10,7 @@ import asyncio
 from dotenv import load_dotenv
 from etherscan import Etherscan
 from web3.constants import WEI_PER_ETHER
+import settings
 
 assert (10**18 == WEI_PER_ETHER)
 
@@ -77,10 +78,11 @@ class Router:
 
 # TODO: config yaml
 routers = [
-    Router("Uniswap_V2:_Router_2", "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"),
+    # Router("Uniswap_V2:_Router_2", settings.uniswap_v2_router),  # depends on testnet vs mainnet
     # TODO why much less volume for V3 ???
-    # Router("Uniswap_V3:_Router", "0xE592427A0AEce92De3Edee1F18E0157C05861564"),
-    # Router("Uniswap_V3:_Router_2", "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45")
+    Router("Uniswap_V2:_Router_2", "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"),
+    Router("Uniswap_V3:_Router", "0xE592427A0AEce92De3Edee1F18E0157C05861564"),
+    Router("Uniswap_V3:_Router_2", "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45")
 ]
 # "pancake_swap": '0x10ed43c718714eb63d5aa57b78b54704e256024e',  # Binance smart chain
 address2router = {router.address: router for router in routers}
