@@ -4,13 +4,6 @@ WARNING: THIS IS STILL IN PROGRESS !!!!!!
 
 ## TODOs
 
-- [ ] Mercury
-- [ ] Venus
-- [ ] Earth (Orbit/Moon)
-- [ ] Mars
-- [ ] Jupiter
-- [ ] Saturn
-- [ ] Uranus
 - [ ] `import tradingstrategy` [Trading strategy](https://github.com/tradingstrategy-ai/trading-strategy)
 - [ ] Research [Awesome Crypto Trading Bots](https://github.com/botcrypto-io/awesome-crypto-trading-bots)
 
