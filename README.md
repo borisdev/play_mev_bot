@@ -2,6 +2,20 @@ WARNING: THIS IS STILL IN PROGRESS !!!!!!
 
 # play_mev_bot
 
+## TODOs
+
+- [ ] Mercury
+- [ ] Venus
+- [ ] Earth (Orbit/Moon)
+- [ ] Mars
+- [ ] Jupiter
+- [ ] Saturn
+- [ ] Uranus
+- [ ] `import tradingstrategy` [Trading strategy](https://github.com/tradingstrategy-ai/trading-strategy)
+- [ ] Research [Awesome Crypto Trading Bots](https://github.com/botcrypto-io/awesome-crypto-trading-bots)
+
+
+
 ## Why build a MEV bot?
 
 You can learn about the following blockachain topics:
