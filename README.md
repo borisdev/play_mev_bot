@@ -50,7 +50,10 @@ get uniswap data
 - https://github.com/flashbots/simple-arbitrage
 - https://github.com/duoxehyon/mev-template-go
 
+# References
 
+- Flashbots Bundle Explorer
+- mev-job-board
 
 
 # Prereqs
