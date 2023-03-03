@@ -1,6 +1,6 @@
 WARNING: THIS IS STILL IN PROGRESS !!!!!!
 
-# play_mev_bot
+# A Play MEV bot
 
 ## Why build a MEV bot?
 
