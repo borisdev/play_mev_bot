@@ -2,13 +2,6 @@ WARNING: THIS IS STILL IN PROGRESS !!!!!!
 
 # play_mev_bot
 
-## TODOs
-
-- [ ] `import tradingstrategy` [Trading strategy](https://github.com/tradingstrategy-ai/trading-strategy)
-- [ ] Research [Awesome Crypto Trading Bots](https://github.com/botcrypto-io/awesome-crypto-trading-bots)
-
-
-
 ## Why build a MEV bot?
 
 You can learn about the following blockachain topics:
@@ -71,3 +64,14 @@ git clone https://github.com/flashbots/web3-flashbots
 cd 
 pip3 .
 ```
+
+## TODOs
+
+- [ ] `import dbm` to store transaction traces (observability)
+- [ ] `import tradingstrategy` [Trading strategy](https://github.com/tradingstrategy-ai/trading-strategy)
+- [ ] `import web3_defi`
+- [ ] contribute to open source by adding libraries as submodules
+- [ ] Research [Awesome Crypto Trading Bots](https://github.com/botcrypto-io/awesome-crypto-trading-bots)
+- [ ] Research oracles 
+
+

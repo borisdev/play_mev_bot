@@ -30,6 +30,7 @@ from web3.auto import Web3
 from web3.exceptions import TransactionNotFound
 from web3.types import TxParams, Wei
 import constants
+from constants import (Token)
 import settings
 
 
@@ -217,9 +218,7 @@ if __name__ == "__main__":
     with open('Uniswap_V2:_Router_2.abi') as file:
         abi_def = json.load(file)
     contract_addr = Web3.toChecksumAddress(settings.uniswap_v2_router)
-    contract = w3.eth.contract(contract_addr, abi=abi_def)
+    swap_contract = w3.eth.contract(contract_addr, abi=abi_def)
     input_quantity_wei = 1
-    swap_path = [input_token_address, output_token_address]
+    swap_path = [Token.WETH, Token.USD]
     swap_contract.functions.getAmountsOut(input_quantity_wei, swap_path).call()
-
-

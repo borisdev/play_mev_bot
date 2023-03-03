@@ -50,7 +50,7 @@ balance = settings.w3.eth.get_balance(address, block)
 print("my wei balance:", balance)
 print("my eth balance:", balance / 10**18)
 print("my dollar balance:", balance / 10**18 * 1300)
-
+# uniswap.make_trade_output(dai, eth, 100)  # buy DAI for 100 Wei ETH
 
 
 
@@ -101,6 +101,10 @@ start = time.time()  # start of the tx
 
 
 # call solidity function
+"""
+- `swapExactETHForTokens` takes your ETH and returns WETH (the ERC 20 token equivalent)
+- `swapExactTokensForETH` does the inverse of the above
+"""
 uniswap_tx = uniswap_contract.functions.swapExactETHForTokens(
     0, [spend, token_to_buy], sender_address, (int(time.time()) + 10000)
 ).build_transaction(
