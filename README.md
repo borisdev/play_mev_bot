@@ -4,12 +4,11 @@ WARNING: THIS IS STILL IN PROGRESS !!!!!!
 
 ## Why build a MEV bot?
 
-You can learn about the following blockachain topics:
+This is purely a learning exercise on the following blockchain topics:
 
 - Etheruem transactions
-- DeFi (dex)
-- Contracts
-- Arbitrage
+- DEX (Uniswap)
+- Smart contracts
 
 ## And why code a MEV bot in Python versus Javascript?
 
