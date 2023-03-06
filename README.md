@@ -3,7 +3,7 @@ WARNING: THIS IS STILL IN PROGRESS !!!!!!
 # A Play MEV bot
 
 
-# TODO reads
+## TODO reads
 
 - [ ] BowTiedDevil's analysis and dcoding of  Uniswap's [Introducing Permit2 & Universal Router](https://uniswap.org/blog/permit2-and-universal-router) at [Uniswap Universal Router" in substack's Degen Code](https://degencode.substack.com/p/uniswap-universal-router?utm_source=substack&publication_id=607913&post_id=106704127&utm_medium=email&triggerSave=true)
 - [ ] [degenbot](https://degencode.substack.com/p/uniswap-universal-router?utm_source=substack&publication_id=607913&post_id=106704127&utm_medium=email&triggerSave=true)
