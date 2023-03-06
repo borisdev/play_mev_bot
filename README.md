@@ -1,5 +1,7 @@
 WARNING: THIS IS STILL IN PROGRESS !!!!!!
 
+# A Play MEV bot
+
 
 # TODO reads
 
@@ -8,16 +10,14 @@ WARNING: THIS IS STILL IN PROGRESS !!!!!!
   Python classes to aid rapid development of Uniswap V2 & V3 arbitrage bots on
   EVM-compatible blockchains
 
-# play_mev_bot
 
 ## Why build a MEV bot?
 
-You can learn about the following blockachain topics:
+This is purely a learning exercise on the following blockchain topics:
 
 - Etheruem transactions
-- DeFi (dex)
-- Contracts
-- Arbitrage
+- DEX (Uniswap)
+- Smart contracts
 
 ## And why code a MEV bot in Python versus Javascript?
 
