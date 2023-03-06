@@ -1,5 +1,13 @@
 WARNING: THIS IS STILL IN PROGRESS !!!!!!
 
+
+# TODO reads
+
+- [ ] BowTiedDevil's analysis and dcoding of  Uniswap's [Introducing Permit2 & Universal Router](https://uniswap.org/blog/permit2-and-universal-router) at [Uniswap Universal Router" in substack's Degen Code](https://degencode.substack.com/p/uniswap-universal-router?utm_source=substack&publication_id=607913&post_id=106704127&utm_medium=email&triggerSave=true)
+- [ ] [degenbot](https://degencode.substack.com/p/uniswap-universal-router?utm_source=substack&publication_id=607913&post_id=106704127&utm_medium=email&triggerSave=true)
+  Python classes to aid rapid development of Uniswap V2 & V3 arbitrage bots on
+  EVM-compatible blockchains
+
 # play_mev_bot
 
 ## Why build a MEV bot?
