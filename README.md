@@ -9,6 +9,8 @@ WARNING: THIS IS STILL IN PROGRESS !!!!!!
 - [ ] [degenbot](https://degencode.substack.com/p/uniswap-universal-router?utm_source=substack&publication_id=607913&post_id=106704127&utm_medium=email&triggerSave=true)
   Python classes to aid rapid development of Uniswap V2 & V3 arbitrage bots on
   EVM-compatible blockchains
+- [ ] [MEV Outlook 2023: Walking Through the Dark Forest](https://eigenphi.substack.com/p/mev-outlook-2023?utm_source=substack&utm_medium=email)
+- [ ] [Amber on Extractable Value](https://medium.com/amber-group/extractable-value-7b0d4356a843)
 
 
 ## Why build a MEV bot?
